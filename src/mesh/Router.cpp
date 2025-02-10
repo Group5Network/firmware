@@ -206,6 +206,8 @@ ErrorCode Router::sendLocal(meshtastic_MeshPacket *p, RxSource src)
  */
 ErrorCode Router::send(meshtastic_MeshPacket *p)
 {
+    LOG_INFO("Router::send, rxSNR=%f rxRSSI=%d hoplimit=%d", p->rx_snr, p->rx_rssi, p->hop_limit);
+
     if (isToUs(p)) {
         LOG_ERROR("BUG! send() called with packet destined for local node!");
         packetPool.release(p);
@@ -252,6 +254,19 @@ ErrorCode Router::send(meshtastic_MeshPacket *p)
     // If we are the original transmitter, set the hop limit with which we start
     if (isFromUs(p))
         p->hop_start = p->hop_limit;
+
+    // Smart hop limit adjustment
+    if (p->rx_rssi > -60) {
+        if (p->hop_limit > 0) {
+            p->hop_limit -= 1;
+        } else {
+            packetPool.release(p);
+            return meshtastic_Routing_Error_NONE;
+        };
+    }
+    if (p->rx_rssi < -80) {
+        if (p->hop_limit < p->hop_start) p->hop_limit += 1;
+    }
 
     // If the packet hasn't yet been encrypted, do so now (it might already be encrypted if we are just forwarding it)
 
