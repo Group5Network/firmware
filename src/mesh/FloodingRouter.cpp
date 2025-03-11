@@ -41,7 +41,7 @@ bool FloodingRouter::shouldFilterReceived(const meshtastic_MeshPacket *p)
             LOG_DEBUG("Repeated reliable tx");
             if (!perhapsRebroadcast(p) && isToUs(p) && p->want_ack) {
                 // FIXME - channel index should be used, but the packet is still encrypted here
-                sendAckNak(meshtastic_Routing_Error_NONE, getFrom(p), p->id, 0, 0);
+                sendAck(meshtastic_Routing_ACK_L2_ACK, getFrom(p), p->id, 0, 0);
             }
         }
 

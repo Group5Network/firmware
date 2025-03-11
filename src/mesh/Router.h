@@ -105,10 +105,12 @@ class Router : protected concurrency::OSThread
      */
     virtual void sniffReceived(const meshtastic_MeshPacket *p, const meshtastic_Routing *c);
 
+    void sendAck(meshtastic_Routing_ACK ack_type, NodeNum to, PacketId idFrom, ChannelIndex chIndex, uint8_t hopLimit = 0);
+
     /**
      * Send an ack or a nak packet back towards whoever sent idFrom
      */
-    void sendAckNak(meshtastic_Routing_Error err, NodeNum to, PacketId idFrom, ChannelIndex chIndex, uint8_t hopLimit = 0);
+    void sendNack(meshtastic_Routing_Error err, NodeNum to, PacketId idFrom, ChannelIndex chIndex, uint8_t hopLimit = 0);
 
   private:
     /**

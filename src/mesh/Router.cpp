@@ -132,18 +132,23 @@ meshtastic_MeshPacket *Router::allocForSending()
     return p;
 }
 
+void Router::sendAck(meshtastic_Routing_ACK ack_type, NodeNum to, PacketId idFrom, ChannelIndex chIndex, uint8_t hopLimit)
+{
+    routingModule->sendAck(ack_type, to, idFrom, chIndex, hopLimit);
+}
+
 /**
  * Send an ack or a nak packet back towards whoever sent idFrom
  */
-void Router::sendAckNak(meshtastic_Routing_Error err, NodeNum to, PacketId idFrom, ChannelIndex chIndex, uint8_t hopLimit)
+void Router::sendNack(meshtastic_Routing_Error err, NodeNum to, PacketId idFrom, ChannelIndex chIndex, uint8_t hopLimit)
 {
-    routingModule->sendAckNak(err, to, idFrom, chIndex, hopLimit);
+    routingModule->sendNack(err, to, idFrom, chIndex, hopLimit);
 }
 
 void Router::abortSendAndNak(meshtastic_Routing_Error err, meshtastic_MeshPacket *p)
 {
     LOG_ERROR("Error=%d, return NAK and drop packet", err);
-    sendAckNak(err, getFrom(p), p->id, p->channel);
+    sendNack(err, getFrom(p), p->id, p->channel);
     packetPool.release(p);
 }
 

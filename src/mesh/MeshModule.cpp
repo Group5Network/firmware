@@ -32,7 +32,31 @@ MeshModule::~MeshModule()
     assert(0); // FIXME - remove from list of modules once someone needs this feature
 }
 
-meshtastic_MeshPacket *MeshModule::allocAckNak(meshtastic_Routing_Error err, NodeNum to, PacketId idFrom, ChannelIndex chIndex,
+meshtastic_MeshPacket *MeshModule::allocAck(meshtastic_Routing_ACK ack_type, NodeNum to, PacketId idFrom, ChannelIndex chIndex,
+                                               uint8_t hopLimit)
+{
+    meshtastic_Routing c = meshtastic_Routing_init_default;
+
+    c.which_variant = meshtastic_Routing_acknowledgement_tag;
+    c.acknowledgement = ack_type;
+
+    meshtastic_MeshPacket *p = router->allocForSending();
+
+    p->decoded.portnum = meshtastic_PortNum_ROUTING_APP;
+    p->decoded.payload.size =
+    pb_encode_to_bytes(p->decoded.payload.bytes, sizeof(p->decoded.payload.bytes), &meshtastic_Routing_msg, &c);
+    p->priority = meshtastic_MeshPacket_Priority_ACK;
+
+    p->hop_limit = hopLimit; // Flood ACK back to original sender
+    p->to = to;
+    p->decoded.request_id = idFrom;
+    p->channel = chIndex;
+    LOG_WARN("Alloc an L%d ack,to=0x%x,idFrom=0x%x,id=0x%x", 2 + ack_type, to, idFrom, p->id);
+
+    return p;
+}
+
+meshtastic_MeshPacket *MeshModule::allocNack(meshtastic_Routing_Error err, NodeNum to, PacketId idFrom, ChannelIndex chIndex,
                                                uint8_t hopLimit)
 {
     meshtastic_Routing c = meshtastic_Routing_init_default;
@@ -47,10 +71,9 @@ meshtastic_MeshPacket *MeshModule::allocAckNak(meshtastic_Routing_Error err, Nod
     p->decoded.portnum = meshtastic_PortNum_ROUTING_APP;
     p->decoded.payload.size =
         pb_encode_to_bytes(p->decoded.payload.bytes, sizeof(p->decoded.payload.bytes), &meshtastic_Routing_msg, &c);
-
     p->priority = meshtastic_MeshPacket_Priority_ACK;
 
-    p->hop_limit = hopLimit; // Flood ACK back to original sender
+    p->hop_limit = hopLimit; // Flood NACK back to original sender
     p->to = to;
     p->decoded.request_id = idFrom;
     p->channel = chIndex;
@@ -65,7 +88,7 @@ meshtastic_MeshPacket *MeshModule::allocErrorResponse(meshtastic_Routing_Error e
     // If the original packet couldn't be decoded, use the primary channel
     uint8_t channelIndex =
         p->which_payload_variant == meshtastic_MeshPacket_decoded_tag ? p->channel : channels.getPrimaryIndex();
-    auto r = allocAckNak(err, getFrom(p), p->id, channelIndex);
+    auto r = allocNack(err, getFrom(p), p->id, channelIndex);
 
     setReplyTo(r, *p);
 
@@ -181,7 +204,7 @@ void MeshModule::callModules(meshtastic_MeshPacket &mp, RxSource src)
             // SECURITY NOTE! I considered sending back a different error code if we didn't find the psk (i.e. !isDecoded)
             // but opted NOT TO.  Because it is not a good idea to let remote nodes 'probe' to find out which PSKs were "good" vs
             // bad.
-            routingModule->sendAckNak(meshtastic_Routing_Error_NO_RESPONSE, getFrom(&mp), mp.id, mp.channel,
+            routingModule->sendNack(meshtastic_Routing_Error_NO_RESPONSE, getFrom(&mp), mp.id, mp.channel,
                                       routingModule->getHopLimitForResponse(mp.hop_start, mp.hop_limit));
         }
     }

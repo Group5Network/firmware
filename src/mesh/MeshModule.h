@@ -161,7 +161,10 @@ class MeshModule
     virtual bool wantUIFrame() { return false; }
     virtual Observable<const UIFrameEvent *> *getUIFrameObservable() { return NULL; }
 
-    meshtastic_MeshPacket *allocAckNak(meshtastic_Routing_Error err, NodeNum to, PacketId idFrom, ChannelIndex chIndex,
+    meshtastic_MeshPacket *allocAck(meshtastic_Routing_ACK ack_type, NodeNum to, PacketId idFrom, ChannelIndex chIndex,
+                                        uint8_t hopLimit = 0);
+
+    meshtastic_MeshPacket *allocNack(meshtastic_Routing_Error err, NodeNum to, PacketId idFrom, ChannelIndex chIndex,
                                        uint8_t hopLimit = 0);
 
     /// Send an error response for the specified packet.

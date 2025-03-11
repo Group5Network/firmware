@@ -77,7 +77,7 @@ inline void onReceiveProto(char *topic, byte *payload, size_t length)
         // We do this because packets are not rebroadcasted back into MQTT anymore and we assume that at least one node
         // receives it when we get our own packet back. Then we'll stop our retransmissions.
         if (isFromUs(e.packet))
-            routingModule->sendAckNak(meshtastic_Routing_Error_NONE, getFrom(e.packet), e.packet->id, ch.index);
+            routingModule->sendNack(meshtastic_Routing_Error_NONE, getFrom(e.packet), e.packet->id, ch.index);
         else
             LOG_INFO("Ignore downlink message we originally sent");
         return;

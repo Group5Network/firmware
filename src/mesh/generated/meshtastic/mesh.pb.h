@@ -381,6 +381,13 @@ typedef enum _meshtastic_Routing_Error {
     meshtastic_Routing_Error_ADMIN_PUBLIC_KEY_UNAUTHORIZED = 37
 } meshtastic_Routing_Error;
 
+typedef enum _meshtastic_Routing_ACK {
+    /* one-hop ack */
+    meshtastic_Routing_ACK_L2_ACK = 0,
+    /* round-trip ack */
+    meshtastic_Routing_ACK_L3_ACK = 1
+} meshtastic_Routing_ACK;
+
 /* The priority of this message for sending.
  Higher priorities are sent first (when managing the transmit queue).
  This field is never sent over the air, it is only used internally inside of a local device node.
@@ -607,6 +614,7 @@ typedef struct _meshtastic_Routing {
         meshtastic_RouteDiscovery route_request;
         /* A route reply */
         meshtastic_RouteDiscovery route_reply;
+        meshtastic_Routing_ACK acknowledgement;
         /* A failure in delivering a message (usually used for routing control messages, but might be provided
      in addition to ack.fail_id to provide details on the type of failure). */
         meshtastic_Routing_Error error_reason;
@@ -743,13 +751,11 @@ typedef struct _meshtastic_MeshPacket {
  Broadcasts messages treat this flag specially: Since acks for broadcasts would
  rapidly flood the channel, the normal ack behavior is suppressed.
  Instead, the original sender listens to see if at least one node is rebroadcasting this packet (because naive flooding algorithm).
- If it hears that the odds are very high (given typical LoRa topologies) that every node should eventually receive the message.
+ If it hears that the odds (given typical LoRa topologies) the odds are very high that every node should eventually receive the message.
  So FloodingRouter.cpp generates an implicit ack which is delivered to the original sender.
  If after some time we don't hear anyone rebroadcast our packet, we will timeout and retransmit, using the regular resend logic.
  Note: This flag is normally sent in a flag bit in the header when sent over the wire */
     bool want_ack;
-    /* Currently does not do anything */
-    bool want_l3ack;
     /* The priority of this message for sending.
  See MeshPacket.Priority description for more details. */
     meshtastic_MeshPacket_Priority priority;
@@ -776,6 +782,7 @@ typedef struct _meshtastic_MeshPacket {
  Timestamp after which this packet may be sent.
  Set by the firmware internally, clients are not supposed to set this. */
     uint32_t tx_after;
+    bool want_l3ack;
 } meshtastic_MeshPacket;
 
 /* The bluetooth to device link:
@@ -1125,6 +1132,10 @@ extern "C" {
 #define _meshtastic_Routing_Error_MAX meshtastic_Routing_Error_ADMIN_PUBLIC_KEY_UNAUTHORIZED
 #define _meshtastic_Routing_Error_ARRAYSIZE ((meshtastic_Routing_Error)(meshtastic_Routing_Error_ADMIN_PUBLIC_KEY_UNAUTHORIZED+1))
 
+#define _meshtastic_Routing_ACK_MIN meshtastic_Routing_ACK_L2_ACK
+#define _meshtastic_Routing_ACK_MAX meshtastic_Routing_ACK_L3_ACK
+#define _meshtastic_Routing_ACK_ARRAYSIZE ((meshtastic_Routing_ACK)(meshtastic_Routing_ACK_L3_ACK+1))
+
 #define _meshtastic_MeshPacket_Priority_MIN meshtastic_MeshPacket_Priority_UNSET
 #define _meshtastic_MeshPacket_Priority_MAX meshtastic_MeshPacket_Priority_MAX
 #define _meshtastic_MeshPacket_Priority_ARRAYSIZE ((meshtastic_MeshPacket_Priority)(meshtastic_MeshPacket_Priority_MAX+1))
@@ -1144,6 +1155,7 @@ extern "C" {
 #define meshtastic_User_role_ENUMTYPE meshtastic_Config_DeviceConfig_Role
 
 
+#define meshtastic_Routing_variant_acknowledgement_ENUMTYPE meshtastic_Routing_ACK
 #define meshtastic_Routing_variant_error_reason_ENUMTYPE meshtastic_Routing_Error
 
 #define meshtastic_Data_portnum_ENUMTYPE meshtastic_PortNum
@@ -1184,7 +1196,7 @@ extern "C" {
 #define meshtastic_Data_init_default             {_meshtastic_PortNum_MIN, {0, {0}}, 0, 0, 0, 0, 0, 0, false, 0}
 #define meshtastic_Waypoint_init_default         {0, false, 0, false, 0, 0, 0, "", "", 0}
 #define meshtastic_MqttClientProxyMessage_init_default {"", 0, {{0, {0}}}, 0}
-#define meshtastic_MeshPacket_init_default       {0, 0, 0, 0, {meshtastic_Data_init_default}, 0, 0, 0, 0, 0, _meshtastic_MeshPacket_Priority_MIN, 0, _meshtastic_MeshPacket_Delayed_MIN, 0, 0, {0, {0}}, 0, 0, 0, 0}
+#define meshtastic_MeshPacket_init_default       {0, 0, 0, 0, {meshtastic_Data_init_default}, 0, 0, 0, 0, 0, _meshtastic_MeshPacket_Priority_MIN, 0, _meshtastic_MeshPacket_Delayed_MIN, 0, 0, {0, {0}}, 0, 0, 0, 0, 0}
 #define meshtastic_NodeInfo_init_default         {0, false, meshtastic_User_init_default, false, meshtastic_Position_init_default, 0, 0, false, meshtastic_DeviceMetrics_init_default, 0, 0, false, 0, 0, 0}
 #define meshtastic_MyNodeInfo_init_default       {0, 0, 0, {0, {0}}, ""}
 #define meshtastic_LogRecord_init_default        {"", 0, "", _meshtastic_LogRecord_Level_MIN}
@@ -1209,7 +1221,7 @@ extern "C" {
 #define meshtastic_Data_init_zero                {_meshtastic_PortNum_MIN, {0, {0}}, 0, 0, 0, 0, 0, 0, false, 0}
 #define meshtastic_Waypoint_init_zero            {0, false, 0, false, 0, 0, 0, "", "", 0}
 #define meshtastic_MqttClientProxyMessage_init_zero {"", 0, {{0, {0}}}, 0}
-#define meshtastic_MeshPacket_init_zero          {0, 0, 0, 0, {meshtastic_Data_init_zero}, 0, 0, 0, 0, 0, _meshtastic_MeshPacket_Priority_MIN, 0, _meshtastic_MeshPacket_Delayed_MIN, 0, 0, {0, {0}}, 0, 0, 0, 0}
+#define meshtastic_MeshPacket_init_zero          {0, 0, 0, 0, {meshtastic_Data_init_zero}, 0, 0, 0, 0, 0, _meshtastic_MeshPacket_Priority_MIN, 0, _meshtastic_MeshPacket_Delayed_MIN, 0, 0, {0, {0}}, 0, 0, 0, 0, 0}
 #define meshtastic_NodeInfo_init_zero            {0, false, meshtastic_User_init_zero, false, meshtastic_Position_init_zero, 0, 0, false, meshtastic_DeviceMetrics_init_zero, 0, 0, false, 0, 0, 0}
 #define meshtastic_MyNodeInfo_init_zero          {0, 0, 0, {0, {0}}, ""}
 #define meshtastic_LogRecord_init_zero           {"", 0, "", _meshtastic_LogRecord_Level_MIN}
@@ -1266,7 +1278,8 @@ extern "C" {
 #define meshtastic_RouteDiscovery_snr_back_tag   4
 #define meshtastic_Routing_route_request_tag     1
 #define meshtastic_Routing_route_reply_tag       2
-#define meshtastic_Routing_error_reason_tag      3
+#define meshtastic_Routing_acknowledgement_tag   3
+#define meshtastic_Routing_error_reason_tag      4
 #define meshtastic_Data_portnum_tag              1
 #define meshtastic_Data_payload_tag              2
 #define meshtastic_Data_want_response_tag        3
@@ -1308,6 +1321,7 @@ extern "C" {
 #define meshtastic_MeshPacket_next_hop_tag       18
 #define meshtastic_MeshPacket_relay_node_tag     19
 #define meshtastic_MeshPacket_tx_after_tag       20
+#define meshtastic_MeshPacket_want_l3ack_tag     21
 #define meshtastic_NodeInfo_num_tag              1
 #define meshtastic_NodeInfo_user_tag             2
 #define meshtastic_NodeInfo_position_tag         3
@@ -1446,7 +1460,8 @@ X(a, STATIC,   REPEATED, INT32,    snr_back,          4)
 #define meshtastic_Routing_FIELDLIST(X, a) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (variant,route_request,route_request),   1) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (variant,route_reply,route_reply),   2) \
-X(a, STATIC,   ONEOF,    UENUM,    (variant,error_reason,error_reason),   3)
+X(a, STATIC,   ONEOF,    UENUM,    (variant,acknowledgement,acknowledgement),   3) \
+X(a, STATIC,   ONEOF,    UENUM,    (variant,error_reason,error_reason),   4)
 #define meshtastic_Routing_CALLBACK NULL
 #define meshtastic_Routing_DEFAULT NULL
 #define meshtastic_Routing_variant_route_request_MSGTYPE meshtastic_RouteDiscovery
@@ -1505,7 +1520,8 @@ X(a, STATIC,   SINGULAR, BYTES,    public_key,       16) \
 X(a, STATIC,   SINGULAR, BOOL,     pki_encrypted,    17) \
 X(a, STATIC,   SINGULAR, UINT32,   next_hop,         18) \
 X(a, STATIC,   SINGULAR, UINT32,   relay_node,       19) \
-X(a, STATIC,   SINGULAR, UINT32,   tx_after,         20)
+X(a, STATIC,   SINGULAR, UINT32,   tx_after,         20) \
+X(a, STATIC,   SINGULAR, BOOL,     want_l3ack,       21)
 #define meshtastic_MeshPacket_CALLBACK NULL
 #define meshtastic_MeshPacket_DEFAULT NULL
 #define meshtastic_MeshPacket_payload_variant_decoded_MSGTYPE meshtastic_Data
@@ -1755,7 +1771,7 @@ extern const pb_msgdesc_t meshtastic_ChunkedPayloadResponse_msg;
 #define meshtastic_FromRadio_size                510
 #define meshtastic_Heartbeat_size                0
 #define meshtastic_LogRecord_size                426
-#define meshtastic_MeshPacket_size               378
+#define meshtastic_MeshPacket_size               381
 #define meshtastic_MqttClientProxyMessage_size   501
 #define meshtastic_MyNodeInfo_size               77
 #define meshtastic_NeighborInfo_size             258

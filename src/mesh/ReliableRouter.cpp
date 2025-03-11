@@ -56,7 +56,7 @@ bool ReliableRouter::shouldFilterReceived(const meshtastic_MeshPacket *p)
             LOG_DEBUG("Generate implicit ack");
             // NOTE: we do NOT check p->wantAck here because p is the INCOMING rebroadcast and that packet is not expected to be
             // marked as wantAck
-            sendAckNak(meshtastic_Routing_Error_NONE, getFrom(p), p->id, old->packet->channel);
+            sendAck(meshtastic_Routing_ACK_L2_ACK, getFrom(p), p->id, old->packet->channel);
 
             stopRetransmission(key);
         } else {
@@ -98,18 +98,20 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
                 // A response may be set to want_ack for retransmissions, but we don't need to ACK a response if it received an
                 // implicit ACK already. If we received it directly, only ACK with a hop limit of 0
                 if (!p->decoded.request_id)
-                    sendAckNak(meshtastic_Routing_Error_NONE, getFrom(p), p->id, p->channel,
+                    sendAck(meshtastic_Routing_ACK_L2_ACK, getFrom(p), p->id, p->channel,
                                routingModule->getHopLimitForResponse(p->hop_start, p->hop_limit));
+
                 else if (p->hop_start > 0 && p->hop_start == p->hop_limit)
-                    sendAckNak(meshtastic_Routing_Error_NONE, getFrom(p), p->id, p->channel, 0);
+                    sendAck(meshtastic_Routing_ACK_L2_ACK, getFrom(p), p->id, p->channel, 0);
+
             } else if (p->which_payload_variant == meshtastic_MeshPacket_encrypted_tag && p->channel == 0 &&
                        (nodeDB->getMeshNode(p->from) == nullptr || nodeDB->getMeshNode(p->from)->user.public_key.size == 0)) {
                 LOG_INFO("PKI packet from unknown node, send PKI_UNKNOWN_PUBKEY");
-                sendAckNak(meshtastic_Routing_Error_PKI_UNKNOWN_PUBKEY, getFrom(p), p->id, channels.getPrimaryIndex(),
+                sendNack(meshtastic_Routing_Error_PKI_UNKNOWN_PUBKEY, getFrom(p), p->id, channels.getPrimaryIndex(),
                            routingModule->getHopLimitForResponse(p->hop_start, p->hop_limit));
             } else {
                 // Send a 'NO_CHANNEL' error on the primary channel if want_ack packet destined for us cannot be decoded
-                sendAckNak(meshtastic_Routing_Error_NO_CHANNEL, getFrom(p), p->id, channels.getPrimaryIndex(),
+                sendNack(meshtastic_Routing_Error_NO_CHANNEL, getFrom(p), p->id, channels.getPrimaryIndex(),
                            routingModule->getHopLimitForResponse(p->hop_start, p->hop_limit));
             }
         }
@@ -223,7 +225,7 @@ int32_t ReliableRouter::doRetransmissions()
             if (p.numRetransmissions == 0) {
                 LOG_DEBUG("Reliable send failed, return a nak for fr=0x%x,to=0x%x,id=0x%x", p.packet->from, p.packet->to,
                           p.packet->id);
-                sendAckNak(meshtastic_Routing_Error_MAX_RETRANSMIT, getFrom(p.packet), p.packet->id, p.packet->channel);
+                sendNack(meshtastic_Routing_Error_MAX_RETRANSMIT, getFrom(p.packet), p.packet->id, p.packet->channel);
                 // Note: we don't stop retransmission here, instead the Nak packet gets processed in sniffReceived
                 stopRetransmission(it->first);
                 stillValid = false; // just deleted it
