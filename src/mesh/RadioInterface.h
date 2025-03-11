@@ -13,10 +13,10 @@
 #define MESHTASTIC_HEADER_LENGTH 16
 #define MESHTASTIC_PKC_OVERHEAD 12
 
-#define PACKET_FLAGS_HOP_LIMIT_MASK 0x07
-#define PACKET_FLAGS_WANT_ACK_MASK 0x08
-#define PACKET_FLAGS_VIA_MQTT_MASK 0x10
-#define PACKET_FLAGS_HOP_START_MASK 0xE0
+#define PACKET_FLAGS_HOP_LIMIT_MASK  0x7  //0b0000_0111
+#define PACKET_FLAGS_WANT_ACK_MASK   0x8  //0b0000_1000
+#define PACKET_FLAGS_VIA_MQTT_MASK   0x10 //0b0001_0000
+#define PACKET_FLAGS_HOP_START_MASK  0xe0 //0b1110_0000
 #define PACKET_FLAGS_HOP_START_SHIFT 5
 
 /**
@@ -38,11 +38,13 @@ typedef struct {
     /** The channel hash - used as a hint for the decoder to limit which channels we consider */
     uint8_t channel;
 
-    // ***For future use*** Last byte of the NodeNum of the next-hop for this packet
-    uint8_t next_hop;
+    // in 2.6, this is ***For future use*** Last byte of the NodeNum of the next-hop for this packet
+    // we repurpose this as a second flags field since the flags field is full
+    uint8_t flags2;
 
     // ***For future use*** Last byte of the NodeNum of the node that will relay/relayed this packet
-    uint8_t relay_node;
+    // unused in this implementation
+    uint8_t _unused;
 } PacketHeader;
 
 /**
