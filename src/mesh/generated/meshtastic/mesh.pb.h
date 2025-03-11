@@ -743,11 +743,13 @@ typedef struct _meshtastic_MeshPacket {
  Broadcasts messages treat this flag specially: Since acks for broadcasts would
  rapidly flood the channel, the normal ack behavior is suppressed.
  Instead, the original sender listens to see if at least one node is rebroadcasting this packet (because naive flooding algorithm).
- If it hears that the odds (given typical LoRa topologies) the odds are very high that every node should eventually receive the message.
+ If it hears that the odds are very high (given typical LoRa topologies) that every node should eventually receive the message.
  So FloodingRouter.cpp generates an implicit ack which is delivered to the original sender.
  If after some time we don't hear anyone rebroadcast our packet, we will timeout and retransmit, using the regular resend logic.
  Note: This flag is normally sent in a flag bit in the header when sent over the wire */
     bool want_ack;
+    /* Currently does not do anything */
+    bool want_l3ack;
     /* The priority of this message for sending.
  See MeshPacket.Priority description for more details. */
     meshtastic_MeshPacket_Priority priority;

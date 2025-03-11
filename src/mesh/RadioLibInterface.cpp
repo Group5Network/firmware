@@ -440,6 +440,7 @@ void RadioLibInterface::handleReceiveInterrupt()
             mp->hop_start = (radioBuffer.header.flags & PACKET_FLAGS_HOP_START_MASK) >> PACKET_FLAGS_HOP_START_SHIFT;
             mp->want_ack = !!(radioBuffer.header.flags & PACKET_FLAGS_WANT_ACK_MASK);
             mp->via_mqtt = !!(radioBuffer.header.flags & PACKET_FLAGS_VIA_MQTT_MASK);
+            mp->want_l3ack = !!(radioBuffer.header.flags2 & PACKET_FLAGS2_WANT_L3ACK_MASK);
 
             addReceiveMetadata(mp);
 

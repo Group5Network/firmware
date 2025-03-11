@@ -19,6 +19,8 @@
 #define PACKET_FLAGS_HOP_START_MASK  0xe0 //0b1110_0000
 #define PACKET_FLAGS_HOP_START_SHIFT 5
 
+#define PACKET_FLAGS2_WANT_L3ACK_MASK 0x1 //0b0000_0001
+
 /**
  * This structure has to exactly match the wire layout when sent over the radio link.  Used to keep compatibility
  * with the old radiohead implementation.
