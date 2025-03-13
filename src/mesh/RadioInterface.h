@@ -38,11 +38,11 @@ typedef struct {
     /** The channel hash - used as a hint for the decoder to limit which channels we consider */
     uint8_t channel;
 
-    // ***For future use*** Last byte of the NodeNum of the next-hop for this packet
+    // Distance we (the node transmitting this) thinks we are from the destination node
     uint8_t perceived_distance;
 
-    // ***For future use*** Last byte of the NodeNum of the node that will relay/relayed this packet
-    uint8_t _unused;
+    // Last byte of the nodeNum of the transmitter
+    uint8_t current_hop;
 } PacketHeader;
 
 /**

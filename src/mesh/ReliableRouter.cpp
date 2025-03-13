@@ -35,6 +35,9 @@ ErrorCode ReliableRouter::send(meshtastic_MeshPacket *p)
         }
     }
 
+    auto known_distance = distance.find(p->to);
+    p->perceived_distance = (known_distance == distance.end()) ? 0 : known_distance->second;
+
     return FloodingRouter::send(p);
 }
 

@@ -148,6 +148,9 @@ class NodeDB
     meshtastic_NodeInfoLite *getMeshNode(NodeNum n);
     size_t getNumMeshNodes() { return numMeshNodes; }
 
+    uint8_t getLastByteOfNodeNum(NodeNum num) { return (uint8_t)((num & 0xFF) ? (num & 0xFF) : 0xFF); }
+    NodeNum findMatchingNodeNum(uint8_t last_byte);
+
     // returns true if the maximum number of nodes is reached or we are running low on memory
     bool isFull();
 

@@ -51,10 +51,27 @@ class GlobalPacketIdHashFunction
 /**
  * This is a mixin that extends Router with the ability to do (one hop only) reliable message sends.
  */
-class ReliableRouter : public FloodingRouter
+class ReliableRouter: public FloodingRouter
 {
   private:
     std::unordered_map<GlobalPacketId, PendingPacket, GlobalPacketIdHashFunction> pending;
+
+    /*
+    * Our perceived distance in hops to each node (0 = unknown)
+    * When we send or forward a packet, we attach our perceived distance from the packet destination to it
+    *
+    * If we receive any packet from an immediate neighbour, we know the distance to that neighbour is 1
+    * if we are the destination, we know the distance from the source is hop_start - hop_limit + 1
+    * If we do not receive an acknowledgment from a node with distance 1, its distance goes back to 0 (unknown)
+    *
+    * If we have a distance "m" for a node, and we receive a packet that claims a distance of "n" for a destination:
+    *
+    *   if n=0 and m=0, neither nodes have any information so we retransmit
+    *   if n!=0 and m=0, m becomes n+1 and we do not retransmit
+    *   if n=0 and m!=0, m is unchanged and we retransmit
+    *   if n!=0 and m!=0, we retransmit only if m<n
+    */
+    std::unordered_map<NodeNum, uint8_t> distance;
 
   public:
     /**

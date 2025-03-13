@@ -764,12 +764,11 @@ typedef struct _meshtastic_MeshPacket {
     meshtastic_MeshPacket_public_key_t public_key;
     /* Indicates whether the packet was en/decrypted using PKI */
     bool pki_encrypted;
-    /* Last byte of the node number of the node that should be used as the next hop in routing. 
- Set by the firmware internally, clients are not supposed to set this. */
+    /* Distance the current hop node thinks we are from the destination */
     uint8_t perceived_distance;
     /* Last byte of the node number of the node that will relay/relayed this packet.
  Set by the firmware internally, clients are not supposed to set this. */
-    uint8_t _unused;
+    uint8_t current_hop;
     /* *Never* sent over the radio links.
  Timestamp after which this packet may be sent.
  Set by the firmware internally, clients are not supposed to set this. */
@@ -1304,7 +1303,7 @@ extern "C" {
 #define meshtastic_MeshPacket_public_key_tag     16
 #define meshtastic_MeshPacket_pki_encrypted_tag  17
 #define meshtastic_MeshPacket_perceived_distance_tag 18
-#define meshtastic_MeshPacket__unused_distance_tag 19
+#define meshtastic_MeshPacket_current_hop_distance_tag 19
 #define meshtastic_MeshPacket_tx_after_tag       20
 #define meshtastic_NodeInfo_num_tag              1
 #define meshtastic_NodeInfo_user_tag             2
@@ -1502,7 +1501,7 @@ X(a, STATIC,   SINGULAR, UINT32,   hop_start,        15) \
 X(a, STATIC,   SINGULAR, BYTES,    public_key,       16) \
 X(a, STATIC,   SINGULAR, BOOL,     pki_encrypted,    17) \
 X(a, STATIC,   SINGULAR, UINT32,   perceived_distance, 18) \
-X(a, STATIC,   SINGULAR, UINT32,   _unused,          19) \
+X(a, STATIC,   SINGULAR, UINT32,   current_hop,      19) \
 X(a, STATIC,   SINGULAR, UINT32,   tx_after,         20)
 #define meshtastic_MeshPacket_CALLBACK NULL
 #define meshtastic_MeshPacket_DEFAULT NULL

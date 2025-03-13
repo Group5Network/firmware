@@ -1249,6 +1249,17 @@ size_t NodeDB::getNumOnlineMeshNodes(bool localOnly)
     return numseen;
 }
 
+// Find a node in the database that matches the last byte, return 0 if not found
+NodeNum NodeDB::findMatchingNodeNum(uint8_t last_byte)
+{
+    for (int i = 0; i < numMeshNodes; i++) {
+        if ((uint8_t)(meshNodes->at(i).num & 0xff) == last_byte) {
+            return meshNodes->at(i).num;
+        }
+    }
+    return 0;
+}
+
 #include "MeshModule.h"
 #include "Throttle.h"
 

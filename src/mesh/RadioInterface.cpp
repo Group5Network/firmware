@@ -621,7 +621,7 @@ size_t RadioInterface::beginSending(meshtastic_MeshPacket *p)
     radioBuffer.header.id = p->id;
     radioBuffer.header.channel = p->channel;
     radioBuffer.header.perceived_distance = p->perceived_distance;
-    radioBuffer.header._unused = 0; // *** For future use ***
+    radioBuffer.header.current_hop = p->current_hop;
     if (p->hop_limit > HOP_MAX) {
         LOG_WARN("hop limit %d is too high, setting to %d", p->hop_limit, HOP_RELIABLE);
         p->hop_limit = HOP_RELIABLE;
