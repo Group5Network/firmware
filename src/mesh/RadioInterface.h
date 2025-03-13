@@ -39,10 +39,10 @@ typedef struct {
     uint8_t channel;
 
     // ***For future use*** Last byte of the NodeNum of the next-hop for this packet
-    uint8_t next_hop;
+    uint8_t perceived_distance;
 
     // ***For future use*** Last byte of the NodeNum of the node that will relay/relayed this packet
-    uint8_t relay_node;
+    uint8_t _unused;
 } PacketHeader;
 
 /**

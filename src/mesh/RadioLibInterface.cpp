@@ -435,6 +435,7 @@ void RadioLibInterface::handleReceiveInterrupt()
             mp->to = radioBuffer.header.to;
             mp->id = radioBuffer.header.id;
             mp->channel = radioBuffer.header.channel;
+            mp->perceived_distance = radioBuffer.header.perceived_distance;
             assert(HOP_MAX <= PACKET_FLAGS_HOP_LIMIT_MASK); // If hopmax changes, carefully check this code
             mp->hop_limit = radioBuffer.header.flags & PACKET_FLAGS_HOP_LIMIT_MASK;
             mp->hop_start = (radioBuffer.header.flags & PACKET_FLAGS_HOP_START_MASK) >> PACKET_FLAGS_HOP_START_SHIFT;
