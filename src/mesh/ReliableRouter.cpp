@@ -14,6 +14,12 @@
  */
 ErrorCode ReliableRouter::send(meshtastic_MeshPacket *p)
 {
+    // Put how far we think we are from the destination into the packet header
+    auto known_distance = distance.find(p->to);
+    p->perceived_distance = (known_distance == distance.end()) ? 0 : known_distance->second;
+    // Put our last byte
+    p->current_hop = nodeDB->getLastByteOfNodeNum(getNodeNum());
+
     if (p->want_ack) {
         // If someone asks for acks on broadcast, we need the hop limit to be at least one, so that first node that receives our
         // message will rebroadcast.  But asking for hop_limit 0 in that context means the client app has no preference on hop
@@ -35,9 +41,6 @@ ErrorCode ReliableRouter::send(meshtastic_MeshPacket *p)
         }
     }
 
-    auto known_distance = distance.find(p->to);
-    p->perceived_distance = (known_distance == distance.end()) ? 0 : known_distance->second;
-
     return FloodingRouter::send(p);
 }
 
@@ -46,11 +49,9 @@ bool ReliableRouter::shouldFilterReceived(const meshtastic_MeshPacket *p)
     // Note: do not use getFrom() here, because we want to ignore messages sent from phone
     if (p->from == getNodeNum()) {
         printPacket("Rx someone rebroadcasting for us", p);
-
         // We are seeing someone rebroadcast one of our broadcast attempts.
         // If this is the first time we saw this, cancel any retransmissions we have queued up and generate an internal ack for
         // the original sending process.
-
         // This "optimization", does save lots of airtime. For DMs, you also get a real ACK back
         // from the intended recipient.
         auto key = GlobalPacketId(getFrom(p), p->id);
@@ -93,6 +94,26 @@ bool ReliableRouter::shouldFilterReceived(const meshtastic_MeshPacket *p)
  */
 void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtastic_Routing *c)
 {
+    // find the sender of this packet
+    // if we find it, update our distance to it to 1
+    NodeNum sender = nodeDB->findMatchingNodeNum(p->current_hop);
+    if (sender != 0) {
+        distance.erase(sender);
+        distance.insert(std::make_pair(sender, 1));
+        LOG_WARN("Update distance to %08x to 1", sender);
+    }
+    // if the packet is to us, update our distance to the original sender to
+    // hop_start - hop_limit + 1
+    // TODO: the packet might have taken multiple paths to get here!
+    // maybe set to min(current, hop_start - hop_limit + 1)
+    if (isToUs(p)) {
+        distance.erase(p->from);
+        distance.insert(std::make_pair(p->from, p->hop_start - p->hop_limit + 1));
+        LOG_WARN("Packet is to us, update distance to %08x to %d", p->from, p->hop_start - p->hop_limit + 1);
+    } else {
+        // TODO
+    }
+
     if (isToUs(p)) { // ignore ack/nak/want_ack packets that are not address to us (we only handle 0 hop reliability)
         if (p->want_ack) {
             if (MeshModule::currentReply) {
@@ -126,7 +147,7 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
         // We consider an ack to be either a !routing packet with a request ID or a routing packet with !error
         PacketId ackId = ((c && c->error_reason == meshtastic_Routing_Error_NONE) || !c) ? p->decoded.request_id : 0;
 
-        // A nak is a routing packt that has an  error code
+        // A nak is a routing packt that has an error code
         PacketId nakId = (c && c->error_reason != meshtastic_Routing_Error_NONE) ? p->decoded.request_id : 0;
 
         // We intentionally don't check wasSeenRecently, because it is harmless to delete non existent retransmission records
@@ -224,6 +245,9 @@ int32_t ReliableRouter::doRetransmissions()
         // FIXME, handle 51 day rollover here!!!
         if (p.nextTxMsec <= now) {
             if (p.numRetransmissions == 0) {
+                // Out of retransmissions:
+                // TODO Set all our distances to nodes with a distance of 1 (immediate neighbours) to unknown.
+
                 LOG_DEBUG("Reliable send failed, return a nak for fr=0x%x,to=0x%x,id=0x%x", p.packet->from, p.packet->to,
                           p.packet->id);
                 sendAckNak(meshtastic_Routing_Error_MAX_RETRANSMIT, getFrom(p.packet), p.packet->id, p.packet->channel);
