@@ -46,6 +46,8 @@ ErrorCode ReliableRouter::send(meshtastic_MeshPacket *p)
 
 bool ReliableRouter::shouldFilterReceived(const meshtastic_MeshPacket *p)
 {
+    LOG_WARN("called ReliableRouter::shouldFilterReceived at this point"); // TODO remove maybe
+
     // Note: do not use getFrom() here, because we want to ignore messages sent from phone
     if (p->from == getNodeNum()) {
         printPacket("Rx someone rebroadcasting for us", p);
@@ -94,24 +96,57 @@ bool ReliableRouter::shouldFilterReceived(const meshtastic_MeshPacket *p)
  */
 void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtastic_Routing *c)
 {
+    // DEBUGGING
+    LOG_WARN("distances map contents:");
+    for (auto it = distance.begin(); it != distance.end(); it++) {
+        LOG_WARN("node %08x: %d distance", it->first, it->second);
+    }
+
     // find the sender of this packet
     // if we find it, update our distance to it to 1
     NodeNum sender = nodeDB->findMatchingNodeNum(p->current_hop);
+    LOG_WARN("current sender lookup: %02x -> %08x", p->current_hop, sender);
+
     if (sender != 0) {
         distance.erase(sender);
         distance.insert(std::make_pair(sender, 1));
-        LOG_WARN("Update distance to %08x to 1", sender);
+        LOG_WARN("Update distance to direct neighbour %08x to 1", sender);
     }
     // if the packet is to us, update our distance to the original sender to
     // hop_start - hop_limit + 1
-    // TODO: the packet might have taken multiple paths to get here!
-    // maybe set to min(current, hop_start - hop_limit + 1)
+    // TODO: the packet may have taken multiple paths to get here, and
+    // be received in the future after travelling more hops!
+    // maybe set to min(current distance, hop_start - hop_limit + 1)
     if (isToUs(p)) {
         distance.erase(p->from);
-        distance.insert(std::make_pair(p->from, p->hop_start - p->hop_limit + 1));
-        LOG_WARN("Packet is to us, update distance to %08x to %d", p->from, p->hop_start - p->hop_limit + 1);
+        auto dist = p->hop_start - p->hop_limit + 1;
+        LOG_WARN("Packet is to us, update distance to %08x to %d", p->from, dist);
+        distance.insert(std::make_pair(p->from, dist));
     } else {
-        // TODO
+        // update our distance to the destination here
+        auto senders_distance = p->perceived_distance;
+        auto our_distance = (distance.find(p->to) == distance.end()) ? 0 : distance.find(p->to)->second;
+
+        if (senders_distance == 0) {
+            // sender doesn't tell us any information, we do not update our distance
+        }
+
+        else if (senders_distance > 0 && our_distance == 0) {
+            // sender claims distance of n and we do not know our distance, set our distance to n + 1 (worst case)
+            LOG_WARN("update distance to %08x to sender dist + 1 (%d + 1 = %d)", p->to, senders_distance, senders_distance + 1);
+            assert(distance.find(p->to) == distance.end());
+            distance.insert(std::make_pair(p->to, senders_distance + 1));
+        }
+
+        else if (senders_distance > 0 && our_distance > 0) {
+            LOG_WARN("sender distance: %d, our distance: %d", senders_distance, our_distance);
+            // if the sender has a distance that is more than 1 less, we set our distance to the senders + 1
+            if (senders_distance + 1 < our_distance) {
+                LOG_WARN("set our distance %08x to sender dist + 1 (%d + 1 = %d)", p->to, senders_distance, senders_distance + 1);
+                distance.erase(p->to);
+                distance.insert(std::make_pair(p->to, senders_distance + 1));
+            }
+        }
     }
 
     if (isToUs(p)) { // ignore ack/nak/want_ack packets that are not address to us (we only handle 0 hop reliability)
