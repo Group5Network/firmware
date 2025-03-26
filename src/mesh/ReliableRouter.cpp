@@ -14,9 +14,9 @@
  */
 ErrorCode ReliableRouter::send(meshtastic_MeshPacket *p)
 {
-    // Put how far we think we are from the destination into the packet header
-    auto known_distance = distance.find(p->to);
-    p->perceived_distance = (known_distance == distance.end()) ? 0 : known_distance->second;
+    // Put how far we think we are from the destination into the packet header,
+    // only if not a broadcast packet
+    p->perceived_distance = (isBroadcast(p->to) || distance.find(p->to) == distance.end()) ? 0 : distance.find(p->to)->second;
     // Put our last byte
     p->current_hop = nodeDB->getLastByteOfNodeNum(getNodeNum());
 
@@ -122,7 +122,7 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
         auto dist = p->hop_start - p->hop_limit + 1;
         LOG_WARN("Packet is to us, update distance to %08x to %d", p->from, dist);
         distance.insert(std::make_pair(p->from, dist));
-    } else {
+    } else if (!isBroadcast(p->to)) {
         // update our distance to the destination here
         auto senders_distance = p->perceived_distance;
         auto our_distance = (distance.find(p->to) == distance.end()) ? 0 : distance.find(p->to)->second;
