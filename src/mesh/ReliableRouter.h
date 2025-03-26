@@ -115,6 +115,11 @@ class ReliableRouter: public FloodingRouter
      */
     virtual bool shouldFilterReceived(const meshtastic_MeshPacket *p) override;
 
+    /** Check if we should drop this packet based on our distance comparison rules, or
+     *  defer to FloodingRouter to rebroadcast it
+     */
+    virtual bool perhapsRebroadcast(const meshtastic_MeshPacket *p);
+
     /**
      * Add p to the list of packets to retransmit occasionally.  We will free it once we stop retransmitting.
      */

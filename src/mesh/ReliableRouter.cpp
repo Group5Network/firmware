@@ -196,8 +196,50 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
         }
     }
 
+    bool isAckorReply = (p->which_payload_variant == meshtastic_MeshPacket_decoded_tag) && (p->decoded.request_id != 0);
+    if (isAckorReply && !isToUs(p) && !isBroadcast(p->to)) {
+        // do not flood direct message that is ACKed or replied to
+        LOG_DEBUG("Rxd an ACK/reply not for me, cancel rebroadcast");
+        Router::cancelSending(p->to, p->decoded.request_id); // cancel rebroadcast for this DM
+    }
+
+    ReliableRouter::perhapsRebroadcast(p);
+
     // handle the packet as normal
     FloodingRouter::sniffReceived(p, c);
+}
+
+bool ReliableRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p) {
+    LOG_WARN("called ReliableRouter::shouldFilterReceived at this point");
+
+    if (isBroadcast(p->to)) {
+        LOG_WARN("is broadcast packet, skip distance checks (flood)");
+        return FloodingRouter::perhapsRebroadcast(p);
+    }
+
+    auto senders_distance = p->perceived_distance;
+    auto our_distance = (distance.find(p->to) == distance.end()) ? 0 : distance.find(p->to)->second;
+
+    LOG_WARN("senders distance: %d, our distance: %d", senders_distance, our_distance);
+
+    if (our_distance == 0) {
+        LOG_WARN("our distance unknown, fallthrough (flood)");
+    } else {
+        assert(our_distance > 0);
+        if (senders_distance == 0) {
+            LOG_WARN("sender distance unknown, fallthrough (flood)");
+        } else {
+            assert(senders_distance > 0);
+            if (our_distance >= senders_distance) {
+                LOG_WARN("our distance is known to be greater than or equal to sender, do NOT retransmit!");
+                return true;
+            } else {
+                LOG_WARN("our distance is lesser, fallthrough (flood)");
+            }
+        }
+    }
+
+    return FloodingRouter::perhapsRebroadcast(p);
 }
 
 #define NUM_RETRANSMISSIONS 3

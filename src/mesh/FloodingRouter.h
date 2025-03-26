@@ -31,10 +31,6 @@ class FloodingRouter : public Router, protected PacketHistory
   private:
     bool isRebroadcaster();
 
-    /** Check if we should rebroadcast this packet, and do so if needed
-     * @return true if rebroadcasted */
-    bool perhapsRebroadcast(const meshtastic_MeshPacket *p);
-
   public:
     /**
      * Constructor
@@ -49,6 +45,7 @@ class FloodingRouter : public Router, protected PacketHistory
      */
     virtual ErrorCode send(meshtastic_MeshPacket *p) override;
 
+
   protected:
     /**
      * Should this incoming filter be dropped?
@@ -57,6 +54,12 @@ class FloodingRouter : public Router, protected PacketHistory
      * @return true to abandon the packet
      */
     virtual bool shouldFilterReceived(const meshtastic_MeshPacket *p) override;
+
+    /**
+     * Check if we should rebroadcast this packet, and do so if needed
+     * @return true if rebroadcasted
+     */
+    bool perhapsRebroadcast(const meshtastic_MeshPacket *p);
 
     /**
      * Look for broadcasts we need to rebroadcast
