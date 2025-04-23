@@ -67,9 +67,9 @@ class ReliableRouter: public FloodingRouter
     * If we have a distance "m" for a node, and we receive a packet that claims a distance of "n" for a destination:
     *
     *   if n=0 and m=0, neither nodes have any information so we retransmit
-    *   if n!=0 and m=0, m becomes n+1 and we do not retransmit
+    *   if n!=0 and m=0, m becomes n+1 and we retransmit
     *   if n=0 and m!=0, m is unchanged and we retransmit
-    *   if n!=0 and m!=0, we retransmit only if m<n
+    *   if n!=0 and m!=0, if n+1<m, m becomes n+1, we retransmit only if m<n
     */
     std::unordered_map<NodeNum, uint8_t> distance;
 
@@ -118,7 +118,7 @@ class ReliableRouter: public FloodingRouter
     /** Check if we should drop this packet based on our distance comparison rules, or
      *  defer to FloodingRouter to rebroadcast it
      */
-    virtual bool perhapsRebroadcast(const meshtastic_MeshPacket *p);
+    virtual bool perhapsRebroadcast(const meshtastic_MeshPacket *p, const bool distance_was_just_set);
 
     /**
      * Add p to the list of packets to retransmit occasionally.  We will free it once we stop retransmitting.

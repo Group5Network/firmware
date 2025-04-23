@@ -102,6 +102,12 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
         LOG_WARN("node %08x: %d distance", it->first, it->second);
     }
 
+    // whether the distance to the node was just set for the first time,
+    // true only in the case of a packet not destined for us where
+    // senders_distance > 0 and our_distance = 0.
+    // to ensure that in this case the packet is transmitted onwards
+    bool distance_was_just_set = false;
+
     // find the sender of this packet
     // if we find it, update our distance to it to 1
     NodeNum sender = nodeDB->findMatchingNodeNum(p->current_hop);
@@ -151,7 +157,9 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
         }
 
         else if (senders_distance > 0 && our_distance == 0) {
-            // sender claims distance of n and we do not know our distance, set our distance to n + 1 (worst case)
+            // sender claims distance of n and we do not know our distance, set our distance to n + 1 (worst case),
+            // also set distance_was_just_set to true
+            distance_was_just_set = true;
             LOG_WARN("update distance to %08x to sender dist + 1 (%d + 1 = %d)", p->to, senders_distance, senders_distance + 1);
             assert(distance.find(p->to) == distance.end());
             distance.insert(std::make_pair(p->to, senders_distance + 1));
@@ -222,13 +230,13 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
         Router::cancelSending(p->to, p->decoded.request_id); // cancel rebroadcast for this DM
     }
 
-    ReliableRouter::perhapsRebroadcast(p);
+    ReliableRouter::perhapsRebroadcast(p, distance_was_just_set);
 
     // handle the packet as normal
     FloodingRouter::sniffReceived(p, c);
 }
 
-bool ReliableRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p) {
+bool ReliableRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p, const bool distance_was_just_set) {
     LOG_WARN("called ReliableRouter::shouldFilterReceived at this point");
 
     if (isBroadcast(p->to)) {
@@ -239,7 +247,8 @@ bool ReliableRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p) {
     auto senders_distance = p->perceived_distance;
     auto our_distance = (distance.find(p->to) == distance.end()) ? 0 : distance.find(p->to)->second;
 
-    LOG_WARN("senders distance: %d, our distance: %d", senders_distance, our_distance);
+    LOG_WARN("senders distance: %d, our distance: %d, just set: %s",
+        senders_distance, our_distance, distance_was_just_set ? "true" : "false");
 
     if (our_distance == 0) {
         LOG_WARN("our distance unknown, fallthrough (flood)");
@@ -249,7 +258,14 @@ bool ReliableRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p) {
             LOG_WARN("sender distance unknown, fallthrough (flood)");
         } else {
             assert(senders_distance > 0);
-            if (our_distance >= senders_distance) {
+            // if our distance to the destination was just set for the first time,
+            // i.e our distance was unknown and the senders distance was n,
+            // we have set our distance to be n + 1, but we must make sure in this
+            // specific case we do retransmit the message
+            if (distance_was_just_set) {
+                // fallthrough
+                LOG_WARN("our distance was just set, fallthrough (flood)");
+            } else if (our_distance >= senders_distance) {
                 LOG_WARN("our distance is known to be greater than or equal to sender, do NOT retransmit!");
                 return true;
             } else {
