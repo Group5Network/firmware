@@ -114,14 +114,33 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
     }
     // if the packet is to us, update our distance to the original sender to
     // hop_start - hop_limit + 1
-    // TODO: the packet may have taken multiple paths to get here, and
-    // be received in the future after travelling more hops!
-    // maybe set to min(current distance, hop_start - hop_limit + 1)
+    // note the packet may have taken multiple paths to get here, and
+    // be received in the future after travelling more hops, so we only update
+    // if it is less than the current distance: min(current distance, hop_start - hop_limit + 1)
     if (isToUs(p)) {
-        distance.erase(p->from);
-        auto dist = p->hop_start - p->hop_limit + 1;
-        LOG_WARN("Packet is to us, update distance to %08x to %d", p->from, dist);
-        distance.insert(std::make_pair(p->from, dist));
+        uint8_t dist = p->hop_start - p->hop_limit + 1;
+        auto from_node = distance.find(p->from);
+
+        if (from_node == distance.end()) {
+            // not found a distance to original sender, set to hop_start - hop_limit + 1
+            LOG_WARN("Packet is to us, no prior distance to sender, update distance to %08x to %d", p->from, dist);
+            distance.insert(std::make_pair(p->from, dist));
+        } else {
+            // found a previous distance to original sender, change distance if smaller
+            auto prev_dist = from_node->second;
+            distance.erase(p->from);
+            distance.insert(std::make_pair(p->from, min(dist, prev_dist)));
+            if (dist < prev_dist) {
+                LOG_WARN("Packet is to us, distance %d < previous dist %d, update distance to %08x to %d",
+                    dist, prev_dist, p->from, dist
+                );
+            } else {
+                LOG_WARN("Packet is to us, distance %d >= previous dist %d, distance to %08x remains %d",
+                    dist, prev_dist, p->from, prev_dist
+                );
+            }
+        }
+
     } else if (!isBroadcast(p->to)) {
         // update our distance to the destination here
         auto senders_distance = p->perceived_distance;
